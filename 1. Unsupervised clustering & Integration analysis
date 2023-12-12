@@ -1,5 +1,4 @@
-# Del Cellcycle effect & Integrated analysis
-
+# Del Cellcycle effect & CCA batch effect 
 s.genes <- cc.genes.updated.2019$s.genes
 g2m.genes <- cc.genes.updated.2019$g2m.genes
 
@@ -29,6 +28,33 @@ seurat.cluster <- RunUMAP(seurat.cluster, n.components = 2, reduction = "pca", m
                           dims = 1:20, seed.use = 3)
 seurat.cluster <- FindNeighbors(seurat.cluster, reduction = "pca", dims = 1:20)
 seurat.cluster <- FindClusters(seurat.cluster)
+
+
+# Del Cellcycle effect for single dataset 
+seurat <- Seurat::NormalizeData(seurat, verbose = FALSE)
+seurat <- CellCycleScoring(seurat, s.features = m.s.genes, 
+                                   g2m.features = m.g2m.genes, set.ident = TRUE)
+seurat <- FindVariableFeatures(seurat, selection.method = "vst", nfeatures = 3000) 
+
+seurat <- ScaleData(seurat, vars.to.regress = c("S.Score", "G2M.Score"), 
+                       features = rownames(seurat))
+
+seurat <- RunPCA(seurat, npcs = 20, verbose = F)
+ElbowPlot(seurat,20)
+seurat <- RunUMAP(seurat, n.components = 2, min.dist = 0.3, dims = 1:20, seed.use = 3)
+seurat <- FindNeighbors(seurat, dims = 1:20)
+seurat <- FindClusters(seurat)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
