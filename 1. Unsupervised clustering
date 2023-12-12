@@ -1,0 +1,36 @@
+# Del Cellcycle effect & Integrated analysis
+
+s.genes <- cc.genes.updated.2019$s.genes
+g2m.genes <- cc.genes.updated.2019$g2m.genes
+
+Idents(seurat) <- seurat$orig.ident
+DefaultAssay(seurat) <- "RNA"
+seurat.list <- SplitObject(seurat, split.by = "patient")
+seurat.list <- lapply(X = seurat.list, FUN = function(x){
+  x <- NormalizeData(x)
+  x <- CellCycleScoring(x, g2m.features=g2m.genes, s.features=s.genes, set.ident = T)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 3000)
+})
+features <- SelectIntegrationFeatures(object.list = seurat.list,nfeatures = 3000)
+
+seurat.list <- lapply(X = seurat.list,FUN = function(x){
+  x <- ScaleData(x, verbose =F)
+})
+seurat.anchors <- FindIntegrationAnchors(object.list = seurat.list, anchor.features = features,
+                                       reference = c(1,2,3,5,7,8,9), dims = 1:30)
+seurat.combined <- IntegrateData(anchorset = seurat.anchors, dims = 1:30)
+
+DefaultAssay(seurat.combined) <- "integrated"
+seurat.combined <- ScaleData(seurat.combined, vars.to.regress = c("S.Score", "G2M.Score")) 
+
+seurat.cluster <- RunPCA(seurat.combined, npcs = 20, verbose = F)
+ElbowPlot(seurat.cluster,20)
+seurat.cluster <- RunUMAP(seurat.cluster, n.components = 2, reduction = "pca", min.dist = 0.3, 
+                          dims = 1:20, seed.use = 3)
+seurat.cluster <- FindNeighbors(seurat.cluster, reduction = "pca", dims = 1:20)
+seurat.cluster <- FindClusters(seurat.cluster)
+
+
+
+
+
