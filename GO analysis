@@ -1,0 +1,41 @@
+# GO analysis across different time point for each cluster
+
+transfer_to_ENTREZID <- function(x){
+  bitr(x$gene, fromType = "SYMBOL", 
+       toType = c("ENTREZID"),
+       OrgDb = org.Hs.eg.db)
+}
+
+for (i in unique(cd8.markers$`1.Day0`$cluster)) {
+  cd8.markers.day0 <- cd8.markers$`1.Day0`[cd8.markers$`1.Day0`$cluster ==i,]
+  cd8.markers.pre <- cd8.markers$`2.Pre`[cd8.markers$`2.Pre`$cluster == i,]
+  cd8.markers.post <- cd8.markers$`3.Post`[cd8.markers$`3.Post`$cluster == i,]
+  
+  cd8.markers.day0 <- transfer_to_ENTREZID(cd8.markers.day0)
+  cd8.markers.pre <- transfer_to_ENTREZID(cd8.markers.pre)
+  cd8.markers.post <- transfer_to_ENTREZID(cd8.markers.post)
+  
+  cd8_list <- list(
+    Day0 = cd8.markers.day0$ENTREZID,
+    Pre = cd8.markers.pre$ENTREZID,
+    Post = cd8.markers.post$ENTREZID)
+  
+  cd8_list_diff_time <- compareCluster(cd8_list,
+                                       fun = "enrichGO",
+                                       OrgDb = "org.Hs.eg.db",
+                                       ont = "BP",
+                                       pvalueCutoff  = 0.05,
+                                       pAdjustMethod = "BH")
+
+  cd8_list_res <- setReadable(cd8_list_diff_time,OrgDb ="org.Hs.eg.db",keyType = "ENTREZID")
+  
+  cd8_list_res@compareClusterResult[,c(4)] <- paste0(cd8_list_res@compareClusterResult[,c(4)],"_",sep = "")
+  cd8_go_results <-cd8_list_res@compareClusterResult[,c(1:10)]
+  
+  p <- dotplot(cd8_list_diff_time, font.size=12, title = paste("Cluster",i,": The Biological Process of CD8+ T cell subtypes at different times", sep = ""))
+  ggsave(p, file=paste("./04.Cd8_GO/Cd8_Cluster",i,"_GO_plot.pdf", sep = "" ), width = 10, height = 10)
+}
+
+
+
+
