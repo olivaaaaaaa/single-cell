@@ -1,0 +1,39 @@
+getOption('timeout')
+options(timeout=10000)
+
+# divide 75% training set and 25% testing set
+defined <- NormalizeData(defined, normalization.method =  "LogNormalize", scale.factor = 1e4)
+DefaultAssay(defined) <- "RNA"
+defined <- FindVariableFeatures(defined, selection.method = "vst", nfeatures = 2000)  
+defined <- ScaleData(defined) 
+defined <- ScaleData(defined, features = unique(top10$gene))
+
+t_expr <- t(as.matrix(defined@assays$RNA@scale.data)) 
+t_expr[1:4,1:4] 
+
+Idents(defined) <- defined$celltype_new
+inTrain <- createDataPartition(y= Idents(defined),p=0.25,list=F)
+test_expr <- t_expr[inTrain,]
+train_expr <- t_expr[-inTrain,]
+
+test_y <- Idents(defined)[inTrain]
+train_y  <- Idents(defined)[-inTrain] 
+
+# use the randomForest on 75% training set
+train_expr[1:4,1:4]
+table(train_y)
+
+predictor_data = train_expr 
+target = train_y 
+
+rf_output = randomForest(x=predictor_data, y=target,importance = TRUE, ntree = 1000, proximity=FALSE )
+rf_output
+
+# use the 25% testing set to do the validation 
+test_outputs <- predict(rf_output,newdata = test_expr,type="prob")
+test_expr[1:4,1:4]
+head(test_outputs)
+pred_y = colnames(test_outputs)[apply(test_outputs, 1, which.max)]
+pred_y = factor(pred_y,levels = levels(test_y))
+
+gplots::balloonplot(table(pred_y,test_y))
